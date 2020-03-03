@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/lighttiger2505/sqls/database"
+	"github.com/olekukonko/tablewriter"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -289,7 +292,46 @@ func (s *Server) executeQuery(params ExecuteCommandParams) (result interface{}, 
 	if !ok {
 		return nil, fmt.Errorf("document not found: %s", uri)
 	}
-	return s.db.ExecuteQuery(context.Background(), f.Text)
+	v, err := s.db.ExecuteQuery(context.Background(), f.Text)
+	if err != nil {
+		return nil, err
+	}
+	rows, ok := v.(sql.Rows)
+	if !ok {
+		return nil, nil
+	}
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	table := tablewriter.NewWriter(&buf)
+	table.SetHeader(columns)
+
+	values := make([]sql.RawBytes, len(columns))
+	scanArgs := make([]interface{}, len(values))
+	for i := range values {
+		scanArgs[i] = &values[i]
+	}
+	for rows.Next() {
+		err = rows.Scan(scanArgs...)
+		if err != nil {
+			return nil, err
+		}
+		var cols []string
+		for _, col := range values {
+			if col == nil {
+				cols = append(cols, "NULL")
+			} else {
+				cols = append(cols, string(col))
+			}
+		}
+		table.Append(cols)
+	}
+
+	table.Render()
+	return buf.String(), nil
 }
 
 func (s *Server) handleWorkspaceExecuteCommand(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result interface{}, err error) {

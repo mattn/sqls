@@ -101,5 +101,5 @@ func (db *MySQLDB) DescribeTable(tableName string) ([]*ColumnDesc, error) {
 }
 
 func (db *MySQLDB) ExecuteQuery(ctx context.Context, query string) (interface{}, error) {
-	return db.Conn.ExecContext(ctx, query)
+	return db.Conn.QueryContext(ctx, query)
 }

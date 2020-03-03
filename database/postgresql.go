@@ -144,5 +144,5 @@ func (db *PostgreSQLDB) DescribeTable(tableName string) ([]*ColumnDesc, error) {
 }
 
 func (db *PostgreSQLDB) ExecuteQuery(ctx context.Context, query string) (interface{}, error) {
-	return db.Conn.ExecContext(ctx, query)
+	return db.Conn.QueryContext(ctx, query)
 }
